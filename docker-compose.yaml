@@ -1,0 +1,73 @@
+version: '3.9'
+
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: evolution_user
+      POSTGRES_PASSWORD: evoPass2025
+      POSTGRES_DB: evolution_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "evolution_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    container_name: redis
+    image: redis:7
+    restart: always
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  evolution_api:
+    container_name: evolution_api
+    image: atendai/evolution-api:v2.1.1
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${EVOLUTION_PORT:-8080}:8080"
+    volumes:
+      - instances_data:/evolution/instances
+    env_file:
+      - .env
+    networks:
+      - backend
+    labels:
+      com.project.name: "RibbieBOT"
+      com.project.maintainer: "RobsonDev"
+
+volumes:
+  postgres_data:
+    name: evolution_postgres_data
+  redis_data:
+    name: evolution_redis_data
+  instances_data:
+    name: evolution_instances_data
+
+networks:
+  backend:
+    name: evolution_backend
+    driver: bridge
